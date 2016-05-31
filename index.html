@@ -1,50 +1,460 @@
 <!doctype html>
 <html>
-	<head>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-		<title>reveal.js</title>
+    <title>reveal.js</title>
 
-		<link rel="stylesheet" href="css/reveal.css">
-		<link rel="stylesheet" href="css/theme/black.css">
+    <link rel="stylesheet" href="css/reveal.css">
+    <link rel="stylesheet" href="css/theme/sky.css">
 
-		<!-- Theme used for syntax highlighting of code -->
-		<link rel="stylesheet" href="lib/css/zenburn.css">
+    <!-- Theme used for syntax highlighting of code -->
+    <link rel="stylesheet" href="lib/css/zenburn.css">
 
-		<!-- Printing and PDF exports -->
-		<script>
-			var link = document.createElement( 'link' );
-			link.rel = 'stylesheet';
-			link.type = 'text/css';
-			link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
-			document.getElementsByTagName( 'head' )[0].appendChild( link );
-		</script>
-	</head>
-	<body>
-		<div class="reveal">
-			<div class="slides">
-				<section>Slide 1</section>
-				<section>Slide 2</section>
-			</div>
-		</div>
+    <!-- Printing and PDF exports -->
+    <script>
+        var link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = window.location.search.match(/print-pdf/gi) ? 'css/print/pdf.css' : 'css/print/paper.css';
+        document.getElementsByTagName('head')[0].appendChild(link);
+    </script>
+</head>
+<body>
+<div class="reveal">
+    <div class="slides">
+        <section>
+            <h1><font color="#f08"><b>Query Expansion</b></font><br></h1>
+            <h3>Autosuggest<br>Keyphrases extraction<br>Ontologies</h3>
+            <aside class="notes">
+                Background:
+                working on the idea of intelligent term suggestions and query exclusions
+                for several FF;
+                what if instead of asking a lot of questions we could provide the answers right away,
+                just by having a single brand or product term
+            </aside>
+        </section>
 
-		<script src="lib/js/head.min.js"></script>
-		<script src="js/reveal.js"></script>
+        <section>
+            <h2>Query <font color="#f08"><b>Autosuggest</b></font></h2>
+            <aside class="notes">
+                We want the suggest interesting stuff as the user types: popular or very recent,
+                and we also want the suggestions to be ranked, as there is no point of showing the suggestion if it
+                occurs only in a bunch of documents
+            </aside>
+        </section>
 
-		<script>
-			// More info https://github.com/hakimel/reveal.js#configuration
-			Reveal.initialize({
-				history: true,
+        <section>
+            <ul>
+                <li>Based on <b>historical queries</b> from Analytics</li>
+                <li>Suggest <b>popular</b> or <b>recent</b> topics</li>
+                <li>Beyond keyword suggestion (<b>phrases</b>, <b>query operators</b>)</li>
+            </ul>
+            <aside class="notes">
+                1. we want our suggestions to be based on the past queries created by users;
+                we can use collective intelligence of our users in order to execute the most likely query as the user
+                types; the value provided to the user is less keystrokes and intelligent suggestions of popular or
+                recent
+                topics
+                <br>
+                2. for me recency is more important that frequency/popularity of the topic, so suggestions that are more
+                recent will receive better score
+                <br>
+                3. last but not least we want to suggest not only single terms, but also phrases
+            </aside>
+        </section>
 
-				// More info https://github.com/hakimel/reveal.js#dependencies
-				dependencies: [
-					{ src: 'plugin/markdown/marked.js' },
-					{ src: 'plugin/markdown/markdown.js' },
-					{ src: 'plugin/notes/notes.js', async: true },
-					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
-				]
-			});
-		</script>
-	</body>
+        <section>
+            <h3>phrases / operators</h3>
+            <br>
+            <img class="fragment roll-in" height="220" width="200" src="image/MultiTokenQ.png">
+            <img class="fragment roll-in" height="220" width="200" src="image/QueryAuthor.png">
+            <img class="fragment roll-in" height="220" width="200" src="image/QueryAtMentions.png">
+            <aside class="notes">
+                various flavors of the autosuggest feature
+            </aside>
+        </section>
+
+        <section>
+            <section>
+                <h3>Solution</h3>
+                <ul>
+                    <li>Export queries from the past <font color="#f08">N</font> days (e.g. 365 days)</li>
+                    <li>Parse only terms and phrases</li>
+                    <li>Measure query popularity (terms frequency)</li>
+                    <li>Create a separate Solr Index from the extracted queries</li>
+                    <li>Boost / penalize results based on recency</li>
+                </ul>
+            </section>
+            <section>
+                <h3>Sample Query</h3>
+                <pre>
+                    <code>
+2016-06-02T02:14:05Z,"country:eg AND (site:twitter.com OR site:facebook.com)
+\\r\\nAND (\\r\\n\"Al Ahly\" OR \"Zamalek\" OR \"Champions League\" OR
+\"EURO\" OR \"Football\" OR \"Mido\" OR \"Hazim Imam\" OR \"Imad Mit3eb\"
+OR \"CAF\" OR \"LA LIGA\" OR \"Barcelona\" OR \"Real Madrid\" )"
+                     </code>
+                </pre>
+            </section>
+            <section>
+                <h3>Sample output</h3>
+                <pre>
+                    <code data-trim data-noescape>
+{"query":"insurance","creationDate":1463062131000,"count":1471},
+{"query":"shampoo","creationDate":1462911742000,"count":1460},
+{"query":"country:it","creationDate":1463145673000,"count":1456},
+{"query":"watch","creationDate":1463132426000,"count":1438},
+{"query":"for sale","creationDate":1462558474000,"count":1432},
+{"query":"baby","creationDate":1462980572000,"count":1428},
+{"query":"powder","creationDate":1462906762000,"count":1423},
+{"query":"newspaper","creationDate":1463041488000,"count":1411},
+{"query":"beauty","creationDate":1462908186000,"count":1375},
+{"query":"country:cn","creationDate":1462901757000,"count":1370},
+{"query":"spray","creationDate":1462911175000,"count":1365},
+{"query":"amazon.co.uk","creationDate":1461691137000,"count":1347},
+                    </code>
+                </pre>
+                <aside class="notes">
+                    This is the output after parsing each query and running the word count on the results.
+                    Each line in this JSON file is treated as a separate doc that's sent to Solr for indexing.
+                    CreationDate is not a correct name for this field, this should be named last_executed_on, as this
+                    shows *what* was the last time this query was executed.
+                </aside>
+            </section>
+            <section>
+                <h3>Solr Index</h3>
+                <pre>
+                    <code>
+...
+&lt;field name=&quot;query&quot; type=&quot;string&quot; indexed=&quot;true&quot; stored=&quot;true&quot;
+                        required=&quot;true&quot;/&gt;
+&lt;field name=&quot;query_ngram&quot; type=&quot;tquery_ngram&quot; indexed=&quot;true&quot;
+                        stored=&quot;false&quot;/&gt;
+...
+&lt;copyField source=&quot;query&quot; dest=&quot;query_ngram&quot;/&gt;
+...
+&lt;fieldType name=&quot;tquery_ngram&quot; class=&quot;solr.TextField&quot;&gt;
+ &lt;analyzer type=&quot;index&quot;&gt;
+  ...
+  &lt;filter class=&quot;solr.EdgeNGramFilterFactory&quot; minGramSize=&quot;2&quot;
+                        maxGramSize=&quot;10&quot;/&gt;
+ &lt;/analyzer&gt;
+ ...
+&lt;/fieldType&gt;
+                    </code>
+                </pre>
+                <aside class="notes">
+                    Important thing to note here is the *query_ngram* field for which we defined a separate type
+                    with it's own analyzer. During indexing n-grams of the size between 2 and 10 are created from query
+                    terms and added to the index
+                </aside>
+            </section>
+            <section>
+                <h3>n-grams</h3>
+                <p>The analysis of the phrase: <b>"quick brown fox"</b></p>
+                <img width="1200px" src="image/Ngrams.png">
+                <aside class="notes ">
+                    all those n-grams will be indexed by Solr; so when the user types for example "bro", the solr will
+                    match this particular phrase, because the n-gram "bro" was associated with it during the index time
+                </aside>
+            </section>
+            <section>
+                <h3>Query Boosting</h3>
+                <code>
+                    boost(query) = count(query) * recency_boost(query)
+                </code>
+                <aside class="notes">
+                    The suggestions that will come from Solr will be by default scored with tf-idf, but we want to amend
+                    this scoring, because we want to boost by popularity and recency.
+                    <br>
+                    Give positive boost for recent phrases and negative boost for older terms.
+                    Let's make an assumption that I want a boost of 10 for very recent document, and I want a boost to
+                    be less than 1 for documents older than say 60 days.
+                </aside>
+            </section>
+            <section>
+                <h3>Boost recent / penalize old</h3>
+                <br>
+                <img width="1200px" src="image/reciprocalFunction.png">
+            </section>
+        </section>
+
+        <section data-background-image="image/AutosuggestBg.png" data-background-size="1200px">
+            <a href="http://kaktus-teamserver:8080/suggest.html" target="_blank">DEMO!</a>
+        </section>
+
+        <!-- Keyphrase extraction -->
+        <section>
+            <h2><font color="#f08"><b>Context</b></font> terms / <font color="#f08"><b>Keyphrases</b></font></h2>
+            <aside class="notes">
+                What happens when the user clicks enter?
+            </aside>
+        </section>
+
+        <section>
+            <h3>Problem</h3>
+            <p>Extract interesting terms and phrases given just a single (brand/product) name</p>
+            <aside class="notes">
+                A single term is usually the only information we have at the beginning of the Brand Wizard, the question
+                is how can we use this single term and our massive solr index of mentions and extract as much as
+                possible from this single term or phrase?
+            </aside>
+        </section>
+
+        <section>
+            <section>
+                <h3>Solution</h3>
+                <ol>
+                    <li>Get results from the single term query</li>
+                    <li>Build the text corpus</li>
+                    <li>Extract (TF-IDF scored) terms using <font color="#f08"><b>MoreLikeThis</b></font></li>
+                </ol>
+                <aside class="notes">
+                    This is one of the approach: when the user enters a brand/product name (or choose our suggestion),
+                    we want to treat is as a very simple query, execute it against our index and build the text corpus
+                    based on the query results.
+                    <br>
+                    Then we use this corpus to extract interesting terms, by leveraging some of the
+                    Solr core features, namely tf-idf scoring and MoreLikeThis
+                </aside>
+            </section>
+            <section>
+                <h3>Grab some data first...</h3>
+                <p>Consume tweets from Gnip Decahose (Kafka topic)</p>
+            </section>
+            <section data-background-image="image/SingleTermContext.png" data-background-size="1200px">
+                <h3><font color="#f08">Single terms are not enough 😢</font></h3>
+                <aside class="notes">
+                    There is a problem with extracting interesting phrases based on the tf-idf score in Solr:
+                    by default the field analysis that's being used extracts single terms only, so the tf-idf score
+                    will be assigned to single terms instead of phrases. <br>
+                    Is it possible to trick Solr to treat phrases as terms?
+                </aside>
+            </section>
+            <section>
+                <h3>How do we index?</h3>
+                <ul>
+                    <li>Create "pseudo-phrases" with <font color="#f08"><b>Shingles</b></font></li>
+                    <li>Store <font color="#f08"><b>termVectors</b></font> to speed up MoreLikeThis</li>
+                </ul>
+                <pre>
+                    <code>
+&lt;fields&gt;
+  ...
+  &lt;field name=&quot;exact&quot; type=&quot;shingle&quot; indexed=&quot;true&quot; stored=&quot;true&quot;
+                        required=&quot;true&quot; termVectors=&quot;true&quot;/&gt;
+  ...
+&lt;/fields&gt;
+&lt;types&gt;
+  ...
+  &lt;fieldtype name=&quot;shingle&quot; class=&quot;solr.TextField&quot;&gt;
+    &lt;analyzer&gt;
+      &lt;tokenizer class=&quot;solr.UAX29URLEmailTokenizerFactory&quot;/&gt;
+      ...
+      &lt;filter class=&quot;solr.ShingleFilterFactory&quot; maxShingleSize=&quot;3&quot;/&gt;
+    &lt;/analyzer&gt;
+  &lt;/fieldtype&gt;
+&lt;/types&gt;
+                    </code>
+                </pre>
+                <aside class="notes">
+                    It is possible to tell Solr to index not only terms but also phrases. For this we use so called
+                    *Shingles*.
+                    A shingle is just a word-based n-gram, as opposed to character-based n-gram we've seen before. <br>
+                    Again important thing to note here is the new type that uses the Shingle filter as well as the fact
+                    that we store *termVectors*. This might be quite heavy for a large indexes where documents are big, but
+                    in case of *test search* it's not that bad.
+                </aside>
+            </section>
+            <section>
+                <h3>Sooo... What does the Shingle look like?</h3>
+                <p>The analysis of the mention: <b>The quick brown fox jumps over the lazy dog</b></p>
+
+                <img width="1200px" height="150px" src="image/Shingles.png">
+                <aside class="notes ">
+                    This is what the analysis for the simple body of text looks like if the ShingleFilter is applied.
+                    <br>
+                    We use those shingles to create "pseudo-phrases" during the indexing process. And since the shingle
+                    ends up being a single token in the index,
+                    it is a subject to the normal TF-IDF scoring that is used in Lucene. So we will get all the
+                    scoring goodies that come from Lucene for free.
+                </aside>
+            </section>
+            <section>
+                <h3>How do we extract interesting keyphrases?</h3>
+                <p>
+                    Configure <b>MoreLikeThis Handler</b> in your <i>solrconfig.xml</i>
+                        <pre>
+                            <code>
+&lt;requestHandler name=&quot;/mlt&quot; class=&quot;solr.MoreLikeThisHandler&quot;/&gt;
+                            </code>
+                        </pre>
+                </p>
+            </section>
+            <section>
+                <h3>Request</h3>
+                <pre>
+http://localhost:8983/solr/query_context_terms/mlt?
+	mlt.fl=exact&
+	<b>mlt.interestingTerms</b>=details&
+	mlt.mintf=2&
+	mlt.minwl=3&
+	mlt.mindf=1&
+	<b>mlt.boost</b>=true&
+	rows=0&
+	<b>stream.body</b>=Brandwatch is a social media monitoring company
+    headquartered in Brighton, England. Brandwatch is a software
+    as a service, which archives social media data in order to provide
+    companies with information and the means to track specific segments
+    to analyse their brands' online presence
+                </pre>
+            </section>
+            <section>
+                <h3>Response</h3>
+                <pre>
+                    <code>
+&lt;response&gt;
+  &lt;lst name=&quot;responseHeader&quot;&gt;
+    &lt;int name=&quot;status&quot;&gt;0&lt;/int&gt;
+    &lt;int name=&quot;QTime&quot;&gt;21&lt;/int&gt;
+  &lt;/lst&gt;
+&lt;result name=&quot;response&quot; numFound=&quot;59094&quot; start=&quot;0&quot;/&gt;
+  &lt;lst name=&quot;interestingTerms&quot;&gt;
+    &lt;float name=&quot;exact:media&quot;&gt;1.1228108&lt;/float&gt;
+    &lt;float name=&quot;exact:social&quot;&gt;1.1294001&lt;/float&gt;
+    &lt;float name=&quot;exact:social media&quot;&gt;1.2617687&lt;/float&gt;
+    &lt;float name=&quot;exact:brandwatch&quot;&gt;2.1803792&lt;/float&gt;
+    &lt;float name=&quot;exact:brandwatch is&quot;&gt;2.2959332&lt;/float&gt;
+  &lt;/lst&gt;
+&lt;/response&gt;
+                    </code>
+                </pre>
+            </section>
+        </section>
+
+        <section data-background-image="image/Keyphrase.png" data-background-size="1200px">
+            <a href="http://kaktus-teamserver:8080" target="_blank">DEMO!</a>
+        </section>
+
+        <!-- Ontologies -->
+        <section>
+            <h2><font color="#f08"><b>Ontologies</b></font></h2>
+            <aside class="notes">
+                Ontology is a formal term used in Semantic Web, but in this context it's quite simple:
+                1. it's about defining the attributes of a single term <br>
+                2. characterize the possible relationships between terms
+            </aside>
+        </section>
+        <section>
+            <h3>Goals</h3>
+            <ul>
+                <li>Give me terms that are conceptually close to a given term -&gt; <font
+                        color="#f08"><b>word2vec</b></font></li>
+                <li>Show me what was the context in which the term was used by the users -&gt; <font color="#f08"><b>query
+                    mining</b></font></li>
+            </ul>
+            <aside class="notes">
+                word2vec computes distributed vector representation of words; the main advantage is that similar
+                words are close in the vector space;
+            </aside>
+        </section>
+        <section>
+            <h3>Term attributes</h3>
+            <pre>
+                <code>
+&gt; db.terms.find().pretty()
+{ &quot;_id&quot; : &quot;mimmy&quot;, &quot;attributes&quot; : [ &quot;exact&quot; ] }
+{ &quot;_id&quot; : &quot;DBM&quot;, &quot;attributes&quot; : [ &quot;raw&quot; ] }
+{ &quot;_id&quot; : &quot;djrlcontact&quot;, &quot;attributes&quot; : [ &quot;author&quot; ] }
+{ &quot;_id&quot; : &quot;whotelsnyc&quot;, &quot;attributes&quot; : [ &quot;exact&quot; ] }
+{
+	&quot;_id&quot; : &quot;kyliecosmetics&quot;,
+	&quot;attributes&quot; : [
+		&quot;hashtags&quot;,
+		&quot;links&quot;,
+		&quot;at_mentions&quot;
+	]
+}
+{ &quot;_id&quot; : &quot;paty_melo_&quot;, &quot;attributes&quot; : [ &quot;author&quot;, &quot;at_mentions&quot; ] }
+{ &quot;_id&quot; : &quot;dremmanash&quot;, &quot;attributes&quot; : [ &quot;exact&quot;, &quot;author&quot; ] }
+{ &quot;_id&quot; : &quot;vanessa_rodrgs&quot;, &quot;attributes&quot; : [ &quot;author&quot;, &quot;at_mentions&quot; ] }
+                </code>
+            </pre>
+            <aside class="notes">
+                those are the sample term attributes extracted from the queries exported from our system; again queries
+                were parsed and the operators extracted
+            </aside>
+        </section>
+
+        <section>
+            <h3>word2vec and the CPU suffering</h3>
+            <br>
+            <img width="1200px" height="300px" src="image/CPUload.png">
+        </section>
+
+        <section data-background-image="image/Ontologies.png" data-background-size="1200px">
+            <a href="http://kaktus-teamserver:8080/termontology.html" target="_blank">DEMO!</a>
+        </section>
+
+        <section>
+            <h2><font color="#f08"><b>Summary</b></font></h2>
+            <ul>
+                <li>Use the wisdom of the crowd and play with our data</li>
+                <li>If someone did something clever in our system, suggest it to others</li>
+                <li>Dev tips</li>
+                <ul>
+                    <li>Do simple ETL in Scala/Java instead of Spark</li>
+                    <li>Make sure your libraries were compiled by the same Scala version (Kafka, Spark)</li>
+                    <li>Improve query parsing</li>
+                    <li>Extracted keyphrases very similar to each other</li>
+                </ul>
+            </ul>
+            <aside class="notes">
+                1.1 Lots of user generated data, like queries, rules and categories. We can extract a lot of knowledge
+                from it. Use the wisdom of our users to help new users. <br>
+                1.2 Nowadays it's all about users behaviour and personalized recommendations. If you look at the query
+                expansion problem again it's also a recommendation problem.
+                These days it's not only about being able to understand the content itself, it's also having a deeper
+                understanding of what our users are doing with that content.
+                It's about learning from how the users behave and if many users
+                did something clever, our responsibility is to show this cleverness to other users, especially
+                to users which are new to the system. There is a term called *reflected intelligence*: how can I learn
+                from users behaviour and then reflect it back up to new users.
+            </aside>
+        </section>
+
+        <section>
+            <h1><b>?</b></h1>
+            <br>
+            <p>GitHub</p>
+            <p><a href="https://github.com/BrandwatchLtd/query-wizard-context-terms">autosuggest + keyphrases</a></p>
+            <p><a href="https://github.com/BrandwatchLtd/query-term-importer">word2vec + query mining</a></p>
+        </section>
+    </div>
+</div>
+
+<script src="lib/js/head.min.js"></script>
+<script src="js/reveal.js"></script>
+
+<script>
+    // More info https://github.com/hakimel/reveal.js#configuration
+    Reveal.initialize({
+        history: true,
+
+        // More info https://github.com/hakimel/reveal.js#dependencies
+        dependencies: [
+            {src: 'plugin/markdown/marked.js'},
+            {src: 'plugin/markdown/markdown.js'},
+            {src: 'plugin/notes/notes.js', async: true},
+            {
+                src: 'plugin/highlight/highlight.js', async: true, callback: function () {
+                hljs.initHighlightingOnLoad();
+            }
+            }
+        ]
+    });
+</script>
+</body>
 </html>
